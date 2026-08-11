@@ -1,0 +1,10 @@
+fastapi[standard]
+pymongo
+python-dotenv
+cloudinary
+pyjwt
+pwdlib[argon2]
+authlib
+itsdangerous
+email-validator
+matplotlib
