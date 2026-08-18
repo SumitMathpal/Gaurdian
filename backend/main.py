@@ -128,6 +128,8 @@ def get_current_user(
 
     return user
 
+
+
 @app.get("/auth/me")
 def get_me(
     current_user = Depends(get_current_user)
@@ -243,6 +245,53 @@ async def create_missing_person(
 
         print("CREATE MISSING PERSON ERROR:", repr(e))
 
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+
+@app.delete("/missing-persons/{person_id}")
+def delete_missing_person(
+    person_id: str,
+    current_user=Depends(get_current_user)
+):
+    try:
+        person = missing_persons_collection.find_one({
+            "_id": ObjectId(person_id)
+        })
+
+        if not person:
+            raise HTTPException(
+                status_code=404,
+                detail="Report not found"
+            )
+
+        # Only the guardian who created the report can delete it
+        if person.get("parent_id") != str(current_user["_id"]):
+            raise HTTPException(
+                status_code=403,
+                detail="You are not authorized to delete this report"
+            )
+
+        result = missing_persons_collection.delete_one({
+            "_id": ObjectId(person_id)
+        })
+
+        if result.deleted_count == 0:
+            raise HTTPException(
+                status_code=404,
+                detail="Report not found"
+            )
+
+        return {
+            "message": "Report deleted successfully"
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
         raise HTTPException(
             status_code=500,
             detail=str(e)
@@ -586,16 +635,9 @@ async def google_callback(request: Request):
 
     access_token = create_access_token(user_id)
 
-    return {
-        "message": "Google login successful",
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user": {
-            "id": user_id,
-            "name": name,
-            "email": email,
-            "picture": picture
-        }
-    }
+    return RedirectResponse(
+        url=f"http://localhost:5173/?access_token={access_token}"
+    )
+
 
 
